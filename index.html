@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>服務建議書初稿產生器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --desk:#E6EAEE; --panel:#FFFFFF; --ink:#1E2A36; --ink-2:#4F5D6B; --line:#C9D1D9; --line-2:#DDE3E8;
+  --seal:#B7322C; --seal-ink:#FFFFFF; --seal-soft:#F6E3E1; --ok:#2F6B4F; --ok-soft:#E1EFE7; --warn:#8A5A00; --warn-soft:#FFF3D6;
+  --focus:#2B6CB0; --field:#F7F9FA; --mark:#FFF07A;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --desk:#151A20; --panel:#1E252D; --ink:#E6EBF0; --ink-2:#A7B3BF; --line:#3A4552; --line-2:#2C3540;
+    --seal:#D9534A; --seal-ink:#FFFFFF; --seal-soft:#3A2321; --ok:#7CC8A0; --ok-soft:#1D3328; --warn:#F2C25B; --warn-soft:#3A2F14;
+    --focus:#7FB2F0; --field:#252D36; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#151A20; --panel:#1E252D; --ink:#E6EBF0; --ink-2:#A7B3BF; --line:#3A4552; --line-2:#2C3540;
+  --seal:#D9534A; --seal-ink:#FFFFFF; --seal-soft:#3A2321; --ok:#7CC8A0; --ok-soft:#1D3328; --warn:#F2C25B; --warn-soft:#3A2F14;
+  --focus:#7FB2F0; --field:#252D36; color-scheme: dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--desk);color:var(--ink);font:15px/1.65 var(--sans)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:28px;align-items:start}
+@media (max-width:980px){.wrap{grid-template-columns:1fr}.preview-col{order:-1}}
+header.top{grid-column:1/-1;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;padding-bottom:6px}
+h1.title{font-family:var(--serif);font-weight:900;font-size:clamp(26px,3.4vw,38px);letter-spacing:.04em;margin:0;line-height:1.2}
+.lede{margin:6px 0 0;color:var(--ink-2);max-width:60ch}
+.step{background:var(--panel);border:1px solid var(--line-2);border-radius:6px;padding:22px 22px 24px;margin-bottom:18px}
+.step-h{display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.cell{width:38px;height:38px;flex:none;border:1.5px solid var(--seal);color:var(--seal);display:grid;place-items:center;font-family:var(--serif);font-weight:900;font-size:19px;background:linear-gradient(var(--seal) 0 0) center/1px 100% no-repeat, linear-gradient(var(--seal) 0 0) center/100% 1px no-repeat;background-color:var(--panel);position:relative}
+.cell span{background:var(--panel);padding:0 2px;line-height:1}
+.step.done .cell{background:var(--seal);color:var(--seal-ink)}
+.step.done .cell span{background:transparent}
+.step-h h2{font-family:var(--serif);font-weight:600;font-size:20px;margin:0}
+.step-h p{margin:0;color:var(--ink-2);font-size:13.5px}
+.muted{color:var(--ink-2)}
+.small{font-size:13px}
+/* drop zone */
+.drop{border:1.5px dashed var(--line);border-radius:6px;padding:22px;text-align:center;background:var(--field);cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--seal);background:var(--seal-soft)}
+.drop strong{display:block;font-size:16px}
+.files{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:6px}
+.files li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line-2);border-radius:4px;background:var(--panel)}
+.files .fn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.files .err{color:var(--seal);font-size:13px}
+.files select{padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--field)}
+.icon-btn{border:0;background:none;color:var(--ink-2);cursor:pointer;padding:4px 6px;border-radius:4px}
+.icon-btn:hover{color:var(--seal);background:var(--seal-soft)}
+/* fields */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 14px}
+@media (max-width:640px){.grid2,.grid3{grid-template-columns:1fr}}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
+label.f.wide{grid-column:1/-1}
+.inp{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--field);color:var(--ink);font-size:14.5px}
+.inp:focus{border-color:var(--focus)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--field);border:1px solid var(--line-2);color:var(--ink-2)}
+.chip b{color:var(--ink);font-weight:700}
+.items{margin-top:14px;border-top:1px solid var(--line-2);padding-top:12px}
+.items h3{font-size:14px;margin:0 0 8px;font-weight:700}
+.wi{border-left:3px solid var(--seal);padding:6px 0 6px 12px;margin-bottom:10px}
+.wi-row{display:flex;gap:6px;align-items:center}
+.wi-row .no{font-family:var(--serif);font-weight:900;color:var(--seal);width:2.2em;flex:none}
+.wi-subs{margin:6px 0 0 2.6em;display:grid;gap:5px}
+.wi-subs .wi-row .no{color:var(--ink-2);font-family:var(--sans);font-weight:500;font-size:13px}
+.req{font-size:12px;color:var(--ink-2);margin:2px 0 0 2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.link-btn{border:0;background:none;color:var(--focus);cursor:pointer;padding:2px 0;font-size:13px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:4px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.empty{padding:16px;border-radius:4px;background:var(--field);color:var(--ink-2);font-size:14px}
+/* layout tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:8px 14px;cursor:pointer;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--seal);font-weight:700}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:var(--field);padding:7px 11px;cursor:pointer;font-size:13.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--ink)}
+.toggle input{width:18px;height:18px;accent-color:var(--seal)}
+.savebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-2)}
+.status{font-size:13px;padding:3px 10px;border-radius:999px}
+.status.ok{background:var(--ok-soft);color:var(--ok)}
+.status.warn{background:var(--warn-soft);color:var(--warn)}
+.hint{font-size:12px;color:var(--ink-2)}
+/* start */
+.go{display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.checks{display:grid;gap:10px;flex:1;min-width:240px}
+.seal{width:112px;height:112px;flex:none;border:0;cursor:pointer;background:var(--seal);color:var(--seal-ink);border-radius:10px;font-family:var(--serif);font-weight:900;font-size:30px;letter-spacing:.1em;display:grid;place-items:center;position:relative;transform:rotate(-4deg);box-shadow:inset 0 0 0 5px var(--seal),inset 0 0 0 7px rgba(255,255,255,.85);transition:transform .15s}
+.seal span{writing-mode:vertical-rl;line-height:1}
+.seal:hover:not(:disabled){transform:rotate(-4deg) scale(1.04)}
+.seal:active:not(:disabled){transform:rotate(-4deg) scale(.96)}
+.seal:disabled{filter:grayscale(1);opacity:.35;cursor:not-allowed}
+.seal.stamped{animation:stamp .35s ease-out}
+@keyframes stamp{0%{transform:rotate(-4deg) scale(1.25);opacity:.4}70%{transform:rotate(-4deg) scale(.95);opacity:1}100%{transform:rotate(-4deg) scale(1)}}
+@media (prefers-reduced-motion:reduce){.seal,.seal.stamped{animation:none;transition:none}}
+.need{font-size:13px;color:var(--ink-2);margin:10px 0 0}
+.need li{margin:2px 0}
+.need .met{color:var(--ok);text-decoration:line-through}
+.log{margin-top:16px;border:1px solid var(--line-2);border-radius:4px;padding:10px 12px;background:var(--field);display:none;font-size:13.5px}
+.log.on{display:block}
+.log ol{margin:0;padding-left:1.4em}
+.log li{margin:3px 0}
+.log .s-run{color:var(--focus)}
+.log .s-done{color:var(--ok)}
+.log .s-fail{color:var(--warn)}
+.result{display:none;margin-top:16px;padding:16px;border-radius:6px;background:var(--ok-soft);border:1px solid var(--ok)}
+.result.on{display:block}
+.result h3{margin:0 0 6px;font-family:var(--serif);font-size:18px}
+.result ul{margin:8px 0 12px;padding-left:1.3em;font-size:14px}
+/* preview */
+.preview-col{position:sticky;top:calc(16px + env(safe-area-inset-top,0px))}
+@media (max-width:980px){.preview-col{position:static}}
+.pv-label{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 8px;font-size:13px;color:var(--ink-2)}
+.sheet-wrap{--k:1.9;width:calc(210px * var(--k));max-width:100%;margin:0 auto}
+.sheet{background:#fff;color:#111;aspect-ratio:210/297;box-shadow:0 1px 2px rgba(0,0,0,.15),0 12px 28px rgba(20,30,40,.18);overflow:hidden;position:relative;
+  padding:calc(var(--mt) * 10px * var(--k)) calc(var(--mr) * 10px * var(--k)) 0 calc(var(--ml) * 10px * var(--k))}
+.sheet .hdr{position:absolute;top:calc(14px * var(--k));left:calc(var(--ml) * 10px * var(--k));right:calc(var(--mr) * 10px * var(--k));text-align:right;color:#666;border-bottom:1px solid #999;padding-bottom:1px;font-size:6px}
+.sheet .pn{position:absolute;bottom:calc(12px * var(--k));left:0;right:0;text-align:center;font-size:7px;color:#333}
+.pv{margin:0;color:#111;overflow-wrap:anywhere}
+.pv mark{background:var(--mark);color:#111}
+.pv-table{width:100%;border-collapse:collapse;margin:0}
+.pv-table td,.pv-table th{border:.5px solid #333;padding:1px 3px;vertical-align:middle}
+.pv-table th{background:#D9E2F3;font-weight:700}
+.pv-fig{border:1px dashed #888;height:calc(24px * var(--k));display:grid;place-items:center;color:#666;font-size:7px}
+.pv-active{outline:1.5px solid var(--seal);outline-offset:1px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:8px 16px;border-radius:4px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 class="title">服務建議書初稿產生器</h1>
+      <p class="lede">上傳招標文件，設定版面字型，產生一份可直接在 Word 修改的服務建議書初稿：封面、目錄、圖表目錄、各章節、流程圖、甘特圖、經費表與參考文獻都已排好。</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- 一 -->
+    <section class="step" id="s1" aria-labelledby="s1h">
+      <div class="step-h"><div class="cell"><span>一</span></div><div><h2 id="s1h">上傳招標文件</h2><p>招標公告、招標規範／採購說明、投標須知、評選須知、契約草案、標價清單</p></div></div>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="dropHint">
+        <strong>拖曳檔案到這裡，或點擊選擇</strong>
+        <span class="small muted" id="dropHint">支援 .odt、.docx、.pdf、.txt（舊版 .doc 請先另存為 .docx 或 .odt）</span>
+        <input type="file" id="fileIn" multiple accept=".odt,.docx,.pdf,.txt,.md" hidden>
+      </div>
+      <ul class="files" id="files"></ul>
+    </section>
+
+    <!-- 二 -->
+    <section class="step" id="s2" aria-labelledby="s2h">
+      <div class="step-h"><div class="cell"><span>二</span></div><div><h2 id="s2h">確認解析內容</h2><p>自動擷取的資訊會用在封面、各章與表格；可直接修改</p></div></div>
+      <div id="s2empty" class="empty">上傳文件後，這裡會顯示計畫名稱、機關、預算、履約期限與工作項目。</div>
+      <div id="s2body" hidden>
+        <div class="grid2">
+          <label class="f wide">計畫名稱<input class="inp" id="pName"></label>
+          <label class="f">招標機關<input class="inp" id="pAgency"></label>
+          <label class="f">機關稱謂（文中稱呼）<input class="inp" id="pShort" placeholder="例：貴署"></label>
+          <label class="f">投標廠商名稱<input class="inp" id="pBidder" placeholder="例：○○工程顧問股份有限公司"></label>
+          <label class="f">預算金額（元）<input class="inp" id="pBudget" inputmode="numeric"></label>
+          <label class="f wide">履約期限<input class="inp" id="pPeriod"></label>
+          <label class="f">進度表起始月<input class="inp" type="month" id="pStart"></label>
+          <label class="f">進度表結束月<input class="inp" type="month" id="pEnd"></label>
+          <label class="f">封面日期：民國年<input class="inp" id="pRocY" inputmode="numeric"></label>
+          <label class="f">封面日期：月<input class="inp" id="pRocM" inputmode="numeric"></label>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="items">
+          <div class="row" style="justify-content:space-between"><h3>工作項目（對應第貳章各節與甘特圖）</h3>
+            <button class="btn" id="aiParse" hidden>用 AI 重新解析</button></div>
+          <div id="wiList"></div>
+          <button class="link-btn" id="addWi">＋ 新增工作項目</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 三 -->
+    <section class="step" id="s3" aria-labelledby="s3h">
+      <div class="step-h"><div class="cell"><span>三</span></div><div><h2 id="s3h">版面字型設定</h2><p>標題 1～3、內文、圖表標題與表格文字；右側預覽即時更新</p></div></div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div id="styleForm"></div>
+      <div class="savebar">
+        <button class="btn primary" id="saveLayout">儲存排版設定</button>
+        <button class="btn" id="resetLayout">還原預設</button>
+        <span class="status warn" id="saveStatus">尚未儲存</span>
+      </div>
+    </section>
+
+    <!-- 四 -->
+    <section class="step" id="s4" aria-labelledby="s4h">
+      <div class="step-h"><div class="cell"><span>四</span></div><div><h2 id="s4h">確認並開始</h2><p>產生完成後即可下載 Word（.docx）</p></div></div>
+      <div class="go">
+        <div class="checks">
+          <label class="toggle"><input type="checkbox" id="useAI"> 由 Claude 撰寫各章內文初稿</label>
+          <div class="hint" id="aiHint">檢查中…</div>
+          <label class="toggle"><input type="checkbox" id="confirm"> 我已確認解析內容與排版設定</label>
+          <ul class="need" id="need"></ul>
+        </div>
+        <button class="seal" id="start" disabled aria-label="開始產生服務建議書"><span>開始</span></button>
+      </div>
+      <div class="log" id="log" aria-live="polite"><ol id="logList"></ol><div class="row" style="margin-top:8px"><button class="btn" id="stop" hidden>停止 AI 撰寫，改用待補標記</button></div></div>
+      <div class="result" id="result">
+        <h3>初稿已完成</h3>
+        <div class="small" id="resultInfo"></div>
+        <ul>
+          <li>開啟檔案時 Word 會詢問是否更新欄位，請按「是」，目錄、表目錄與圖目錄即會帶出頁碼。</li>
+          <li>黃色醒目的【待補】為需要補充的位置，可用尋找功能搜尋「【待補」逐一處理。</li>
+          <li>流程圖、組織圖與甘特圖以表格繪製，可直接修改文字、增刪格子與網底顏色。</li>
+        </ul>
+        <button class="btn primary" id="dl">下載 Word 檔</button>
+        <span class="small muted" id="dlNote"></span>
+      </div>
+    </section>
+  </main>
+
+  <aside class="preview-col" aria-label="版面預覽">
+    <div class="pv-label"><span>版面預覽（A4）</span><span id="pvNote"></span></div>
+    <div class="sheet-wrap"><div class="sheet" id="sheet">
+      <div class="hdr" id="pvHdr">計畫名稱　服務建議書</div>
+      <p class="pv" data-k="h1">第貳章　專案執行規劃</p>
+      <p class="pv" data-k="h2">2-1　對本計畫及問題之瞭解</p>
+      <p class="pv" data-k="body">本團隊彙整歷年調查成果，結合 GIS 空間分析與 RAMMS 數值模擬，精進影響範圍之劃設依據，並於汛期前完成防災資訊檢視。<mark>【待補：補充本團隊觀點】</mark></p>
+      <p class="pv" data-k="h3">2-1-1　執行方法與作業步驟</p>
+      <p class="pv" data-k="body">各項工作依標準作業程序執行，並由計畫主持人定期覆核，確保成果品質與進度符合契約要求。</p>
+      <p class="pv" data-k="caption">表 2-1　本計畫課題與對策</p>
+      <table class="pv-table" data-k="table"><tr><th>課題</th><th>對策</th></tr><tr><td>資料來源分散</td><td>建立統一資料庫 (GIS)</td></tr></table>
+      <p class="pv" data-k="table" style="text-align:center;opacity:.7">（資料來源：本團隊整理）</p>
+      <div class="pv-fig" data-fig>【圖片預留位置】</div>
+      <p class="pv" data-k="caption">圖 2-1　整體執行流程圖</p>
+      <div class="pn">1</div>
+    </div></div>
+    <p class="hint" style="margin-top:10px">預覽使用本機已安裝的字型；未安裝的字型會以相近字型顯示，Word 檔內仍會套用你選擇的字型名稱。</p>
+  </aside>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
+<script src="src/parse.js"></script>
+<script src="src/gen.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

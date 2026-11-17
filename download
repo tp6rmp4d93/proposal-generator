@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.docx
+*.pdf
+!test/fixtures/*
+.DS_Store
+Thumbs.db

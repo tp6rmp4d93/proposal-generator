@@ -6,7 +6,7 @@ const toast = (m) => { const t = $("#toast"); t.textContent = m; t.classList.add
 const CNN = ProposalGen.CN;
 
 /* ================= 狀態 ================= */
-const state = { docs: [], P: null, sample: null, downloads: null, blob: null, fileName: "", ctl: null, logos: { agency: null, bidder: null } };
+const state = { bidder: "", docs: [], P: null, sample: null, downloads: null, blob: null, fileName: "", ctl: null, logos: { agency: null, bidder: null } };
 
 /* ================= LOGO ================= */
 // 一律轉成 PNG（支援 SVG、WebP 等），最長邊 800px，保留透明背景
@@ -37,7 +37,7 @@ function renderLogos() {
   updatePreview();
 }
 function saveBidder() {
-  try { localStorage.setItem(BIDDER_KEY, JSON.stringify({ name: state.P ? state.P.bidder || "" : savedBidder.name, logo: state.logos.bidder && state.logos.bidder.url.length < 1500000 ? state.logos.bidder.url : "" })); } catch (e) {}
+  try { localStorage.setItem(BIDDER_KEY, JSON.stringify({ name: state.bidder || "", logo: state.logos.bidder && state.logos.bidder.url.length < 1500000 ? state.logos.bidder.url : "" })); } catch (e) {}
 }
 let logoTarget = null;
 document.addEventListener("click", (e) => {
@@ -54,6 +54,9 @@ $("#logoIn").onchange = async () => {
 };
 let savedBidder = { name: "", logo: "" };
 try { savedBidder = Object.assign(savedBidder, JSON.parse(localStorage.getItem(BIDDER_KEY) || "{}")); } catch (e) {}
+state.bidder = savedBidder.name || "";
+$("#pBidder").value = state.bidder;
+$("#pBidder").addEventListener("input", () => { state.bidder = $("#pBidder").value.trim(); saveBidder(); updatePreview(); updateGate(); });
 if (savedBidder.logo) imageToPng(savedBidder.logo).then((l) => { state.logos.bidder = l; renderLogos(); }).catch(() => {});
 
 /* ================= 排版設定 ================= */
@@ -152,11 +155,14 @@ function updatePreview() {
   $("#pvProj").textContent = ($("#pName") && $("#pName").value) || "計畫名稱";
   const al = state.logos.agency, bl = state.logos.bidder, showB = p.footerBidder !== false;
   $("#pvAgencyLogo").hidden = !al; if (al) $("#pvAgencyLogo").src = al.url;
+  $("#pvAgencyPh").hidden = !!al;
   $("#pvBidderLogo").hidden = !(bl && showB); if (bl) $("#pvBidderLogo").src = bl.url;
-  $("#pvBidder").textContent = showB ? (($("#pBidder") && $("#pBidder").value) || "") : "";
+  $("#pvBidderPh").hidden = !showB || !!bl;
+  $("#pvBidder").textContent = showB ? (state.bidder || "投標廠商名稱") : "";
+  $("#pvBidder").style.color = state.bidder ? "" : "#9aa3ab";
   $("#pvBidder").style.marginLeft = bl ? "auto" : "";
   $("#pvPn").hidden = !p.pageNum;
-  const hasB = showB && (bl || $("#pvBidder").textContent);
+  const hasB = showB;
   $("#pvFtr").style.display = hasB || p.pageNum ? "" : "none";
   $("#pvFtr").style.borderTopColor = hasB ? "" : "transparent";
   sh.querySelectorAll("[data-k]").forEach((e) => {
@@ -254,7 +260,6 @@ function reanalyze() {
   const P = TenderParse.analyze(ok);
   P.workItems.forEach((w) => { w.auto = true; w.subs.forEach((s) => (s.auto = true)); });
   const now = new Date();
-  P.bidder = prev && prev.bidder || savedBidder.name || "";
   P.rocYear = now.getFullYear() - 1911; P.rocMonth = now.getMonth() + 1;
   if (P.endRoc) { P.endMonth = monthStr(P.endRoc.y + 1911, P.endRoc.m); P.startMonth = monthStr(P.endRoc.y + 1911, 1); }
   else { P.startMonth = monthStr(now.getFullYear(), now.getMonth() + 1); P.endMonth = monthStr(now.getFullYear() + (now.getMonth() + 11 >= 12 ? 1 : 0), ((now.getMonth() + 11) % 12) + 1); }
@@ -265,7 +270,7 @@ function renderP() {
   const P = state.P;
   $("#s2empty").hidden = !!P; $("#s2body").hidden = !P; $("#s2").classList.toggle("done", !!(P && P.projectName && P.workItems.length));
   if (!P) { updateGate(); return; }
-  bind("#pName", "projectName"); bind("#pAgency", "agency"); bind("#pShort", "agencyShort"); bind("#pBidder", "bidder"); $("#pBidder").addEventListener("input", () => { saveBidder(); updatePreview(); });
+  bind("#pName", "projectName"); bind("#pAgency", "agency"); bind("#pShort", "agencyShort");
   bind("#pBudget", "budget", true); bind("#pPeriod", "period"); bind("#pStart", "startMonth"); bind("#pEnd", "endMonth"); bind("#pRocY", "rocYear", true); bind("#pRocM", "rocMonth", true);
   const c = $("#chips"); c.textContent = "";
   const chip = (l, n) => c.append(el("span", { class: "chip" }, l, " ", el("b", {}, String(n))));
@@ -423,6 +428,7 @@ $("#start").onclick = async () => {
   const months = monthsOf(P);
   P.months = months;
   P.logos = { agency: state.logos.agency, bidder: state.logos.bidder };
+  P.bidder = state.bidder;
   // 查核點位置（甘特圖 ★）
   const n = months.length || 12;
   const ck = P.milestones.map((m) => ({ name: m.stage, idx: /期初|計畫書|第一期/.test(m.stage) ? 0 : /期中|第二期/.test(m.stage) ? Math.floor((n - 1) / 2) : /期末|第三期/.test(m.stage) ? Math.max(0, n - 2) : n - 1 }));
@@ -470,5 +476,5 @@ $("#dl").onclick = async () => {
 };
 
 /* ================= 啟動 ================= */
-renderTabs(); renderForm(); updatePreview(); updateSaveStatus(); renderP();
+renderTabs(); renderForm(); updatePreview(); updateSaveStatus(); renderP(); renderLogos();
 if (window.claude && window.claude.use) initClaude(); else { $("#useAI").disabled = true; $("#aiHint").textContent = "此處無法使用 Claude 撰寫，將產生完整章節架構、表格與【待補】標記。"; }

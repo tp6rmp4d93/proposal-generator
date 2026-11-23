@@ -147,6 +147,10 @@ label.f.wide{grid-column:1/-1}
 .logo-box img{max-width:100%;max-height:100%;object-fit:contain}
 .logo-pick .t{font-size:13px;font-weight:700}
 .logo-pick .row{gap:4px}
+.brand{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--line-2)}
+.brand h3{font-size:14px;margin:0 0 8px;font-weight:700}
+.brand .hint{font-weight:400}
+.sheet .ph{color:#9aa3ab;font-weight:400;border:.5px dashed #9aa3ab;padding:0 2px;font-size:5.5px;line-height:1.4;white-space:nowrap}
 .pv{margin:0;color:#111;overflow-wrap:anywhere}
 .pv mark{background:var(--mark);color:#111}
 .pv-table{width:100%;border-collapse:collapse;margin:0}
@@ -183,26 +187,29 @@ label.f.wide{grid-column:1/-1}
     <!-- 二 -->
     <section class="step" id="s2" aria-labelledby="s2h">
       <div class="step-h"><div class="cell"><span>二</span></div><div><h2 id="s2h">確認解析內容</h2><p>自動擷取的資訊會用在封面、各章與表格；可直接修改</p></div></div>
-      <div id="s2empty" class="empty">上傳文件後，這裡會顯示計畫名稱、機關、預算、履約期限與工作項目。</div>
-      <div id="s2body" hidden>
-        <div class="grid2">
-          <label class="f wide">計畫名稱<input class="inp" id="pName"></label>
-          <label class="f">招標機關<input class="inp" id="pAgency"></label>
-          <label class="f">機關稱謂（文中稱呼）<input class="inp" id="pShort" placeholder="例：貴署"></label>
-          <label class="f">投標廠商名稱<input class="inp" id="pBidder" placeholder="例：○○工程顧問股份有限公司"></label>
-          <label class="f">預算金額（元）<input class="inp" id="pBudget" inputmode="numeric"></label>
-          <label class="f wide">履約期限<input class="inp" id="pPeriod"></label>
-          <label class="f">進度表起始月<input class="inp" type="month" id="pStart"></label>
-          <label class="f">進度表結束月<input class="inp" type="month" id="pEnd"></label>
-          <label class="f">封面日期：民國年<input class="inp" id="pRocY" inputmode="numeric"></label>
-          <label class="f">封面日期：月<input class="inp" id="pRocM" inputmode="numeric"></label>
-        </div>
+      <div class="brand">
+        <h3>投標廠商與 LOGO <span class="hint">（可先設定，用於封面、頁首與頁尾；廠商資料會記在這台電腦）</span></h3>
+        <label class="f">投標廠商名稱<input class="inp" id="pBidder" placeholder="例：○○工程顧問股份有限公司"></label>
         <div class="logos">
           <div class="logo-pick"><div class="logo-box" id="lgAgencyBox">無</div><div><div class="t">機關 LOGO</div><div class="hint">放在頁首左側、封面上方</div>
             <div class="row"><button class="link-btn" data-logo="agency" data-act="pick">選擇圖片</button><button class="link-btn" data-logo="agency" data-act="clear" hidden>移除</button></div></div></div>
           <div class="logo-pick"><div class="logo-box" id="lgBidderBox">無</div><div><div class="t">投標廠商 LOGO</div><div class="hint">放在頁尾左側、封面廠商名稱上方；會記在這台電腦</div>
             <div class="row"><button class="link-btn" data-logo="bidder" data-act="pick">選擇圖片</button><button class="link-btn" data-logo="bidder" data-act="clear" hidden>移除</button></div></div></div>
           <input type="file" id="logoIn" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/bmp" hidden>
+        </div>
+      </div>
+      <div id="s2empty" class="empty">上傳文件後，這裡會顯示計畫名稱、機關、預算、履約期限與工作項目。</div>
+      <div id="s2body" hidden>
+        <div class="grid2">
+          <label class="f wide">計畫名稱<input class="inp" id="pName"></label>
+          <label class="f">招標機關<input class="inp" id="pAgency"></label>
+          <label class="f">機關稱謂（文中稱呼）<input class="inp" id="pShort" placeholder="例：貴署"></label>
+          <label class="f">預算金額（元）<input class="inp" id="pBudget" inputmode="numeric"></label>
+          <label class="f wide">履約期限<input class="inp" id="pPeriod"></label>
+          <label class="f">進度表起始月<input class="inp" type="month" id="pStart"></label>
+          <label class="f">進度表結束月<input class="inp" type="month" id="pEnd"></label>
+          <label class="f">封面日期：民國年<input class="inp" id="pRocY" inputmode="numeric"></label>
+          <label class="f">封面日期：月<input class="inp" id="pRocM" inputmode="numeric"></label>
         </div>
         <div class="chips" id="chips"></div>
         <div class="items">
@@ -256,7 +263,7 @@ label.f.wide{grid-column:1/-1}
   <aside class="preview-col" aria-label="版面預覽">
     <div class="pv-label"><span>版面預覽（A4）</span><span id="pvNote"></span></div>
     <div class="sheet-wrap"><div class="sheet" id="sheet">
-      <div class="hdr" id="pvHdr"><img id="pvAgencyLogo" alt="" hidden><span id="pvProj">計畫名稱</span><span class="r">第貳章　專案執行規劃</span></div>
+      <div class="hdr" id="pvHdr"><img id="pvAgencyLogo" alt="" hidden><span class="ph" id="pvAgencyPh">機關 LOGO</span><span id="pvProj">計畫名稱</span><span class="r">第貳章　專案執行規劃</span></div>
       <p class="pv" data-k="h1">第貳章　專案執行規劃</p>
       <p class="pv" data-k="h2">2-1　對本計畫及問題之瞭解</p>
       <p class="pv" data-k="body">本團隊彙整歷年調查成果，結合 GIS 空間分析與 RAMMS 數值模擬，精進影響範圍之劃設依據，並於汛期前完成防災資訊檢視。<mark>【待補：補充本團隊觀點】</mark></p>
@@ -267,7 +274,7 @@ label.f.wide{grid-column:1/-1}
       <p class="pv" data-k="table" style="text-align:center;opacity:.7">（資料來源：本團隊整理）</p>
       <div class="pv-fig" data-fig>【圖片預留位置】</div>
       <p class="pv" data-k="caption">圖 2-1　整體執行流程圖</p>
-      <div class="ftr" id="pvFtr"><img id="pvBidderLogo" alt="" hidden><span id="pvBidder"></span><span class="pn" id="pvPn">1</span></div>
+      <div class="ftr" id="pvFtr"><img id="pvBidderLogo" alt="" hidden><span class="ph" id="pvBidderPh">廠商 LOGO</span><span id="pvBidder"></span><span class="pn" id="pvPn">1</span></div>
     </div></div>
     <p class="hint" style="margin-top:10px">預覽使用本機已安裝的字型；未安裝的字型會以相近字型顯示，Word 檔內仍會套用你選擇的字型名稱。</p>
   </aside>

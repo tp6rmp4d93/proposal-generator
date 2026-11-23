@@ -6,7 +6,55 @@ const toast = (m) => { const t = $("#toast"); t.textContent = m; t.classList.add
 const CNN = ProposalGen.CN;
 
 /* ================= 狀態 ================= */
-const state = { docs: [], P: null, sample: null, downloads: null, blob: null, fileName: "", ctl: null };
+const state = { docs: [], P: null, sample: null, downloads: null, blob: null, fileName: "", ctl: null, logos: { agency: null, bidder: null } };
+
+/* ================= LOGO ================= */
+// 一律轉成 PNG（支援 SVG、WebP 等），最長邊 800px，保留透明背景
+const BIDDER_KEY = "proposalgen.bidder.v1";
+function imageToPng(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth || 300, h = img.naturalHeight || 150;
+      const k = Math.min(1, 800 / Math.max(w, h)); w = Math.max(1, Math.round(w * k)); h = Math.max(1, Math.round(h * k));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      const url = c.toDataURL("image/png");
+      const bin = atob(url.split(",")[1]); const data = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+      res({ data, w, h, url });
+    };
+    img.onerror = () => rej(new Error("無法讀取這張圖片"));
+    img.src = src;
+  });
+}
+function renderLogos() {
+  [["agency", "#lgAgencyBox"], ["bidder", "#lgBidderBox"]].forEach(([k, box]) => {
+    const l = state.logos[k], b = $(box); b.textContent = "";
+    if (l) b.append(el("img", { src: l.url, alt: k === "agency" ? "機關 LOGO" : "投標廠商 LOGO" })); else b.textContent = "無";
+    document.querySelector(`[data-logo="${k}"][data-act="clear"]`).hidden = !l;
+  });
+  updatePreview();
+}
+function saveBidder() {
+  try { localStorage.setItem(BIDDER_KEY, JSON.stringify({ name: state.P ? state.P.bidder || "" : savedBidder.name, logo: state.logos.bidder && state.logos.bidder.url.length < 1500000 ? state.logos.bidder.url : "" })); } catch (e) {}
+}
+let logoTarget = null;
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-logo]"); if (!b) return;
+  if (b.dataset.act === "pick") { logoTarget = b.dataset.logo; $("#logoIn").click(); }
+  else { state.logos[b.dataset.logo] = null; if (b.dataset.logo === "bidder") saveBidder(); renderLogos(); }
+});
+$("#logoIn").onchange = async () => {
+  const f = $("#logoIn").files[0]; $("#logoIn").value = ""; if (!f || !logoTarget) return;
+  const url = URL.createObjectURL(f);
+  try { state.logos[logoTarget] = await imageToPng(url); if (logoTarget === "bidder") saveBidder(); renderLogos(); }
+  catch (e) { toast(e.message); }
+  URL.revokeObjectURL(url);
+};
+let savedBidder = { name: "", logo: "" };
+try { savedBidder = Object.assign(savedBidder, JSON.parse(localStorage.getItem(BIDDER_KEY) || "{}")); } catch (e) {}
+if (savedBidder.logo) imageToPng(savedBidder.logo).then((l) => { state.logos.bidder = l; renderLogos(); }).catch(() => {});
 
 /* ================= 排版設定 ================= */
 const LS_KEY = "proposalgen.layout.v1";
@@ -19,7 +67,7 @@ const DEFAULT_LAYOUT = {
     caption: { zh: "標楷體", en: "Times New Roman", size: 12, bold: true, align: "center", lineType: "exact", lineValue: 20, before: 6, after: 3, indent: 0 },
     table: { zh: "標楷體", en: "Times New Roman", size: 11, bold: false, align: "left", lineType: "multiple", lineValue: 1, before: 0, after: 0, indent: 0 },
   },
-  page: { top: 2.54, bottom: 2.54, left: 3.17, right: 3.17, header: true, pageNum: true },
+  page: { top: 2.54, bottom: 2.54, left: 3.17, right: 3.17, header: true, pageNum: true, footerBidder: true, color: "2E7D32" },
 };
 const STYLE_TABS = [["h1", "標題 1"], ["h2", "標題 2"], ["h3", "標題 3"], ["body", "內文"], ["caption", "圖表標題"], ["table", "表格文字"], ["page", "頁面"]];
 const ZH_FONTS = ["標楷體", "新細明體", "細明體", "微軟正黑體", "華康中黑體", "華康楷書體", "思源黑體", "思源宋體", "Noto Sans TC", "Noto Serif TC"];
@@ -33,7 +81,7 @@ const CSS_FONT = {
 const SIZE_NAMES = { 42: "初號", 36: "小初", 26: "一號", 24: "小一", 22: "二號", 18: "小二", 16: "三號", 15: "小三", 14: "四號", 12: "小四", 10.5: "五號", 9: "小五" };
 const clone = (o) => JSON.parse(JSON.stringify(o));
 let layout = clone(DEFAULT_LAYOUT), savedJSON = null, activeTab = "h1";
-try { const s = localStorage.getItem(LS_KEY); if (s) { const o = JSON.parse(s); if (o && o.styles && o.page) { layout = Object.assign(clone(DEFAULT_LAYOUT), o); for (const k in DEFAULT_LAYOUT.styles) layout.styles[k] = Object.assign({}, DEFAULT_LAYOUT.styles[k], o.styles[k] || {}); savedJSON = JSON.stringify(layout); } } } catch (e) {}
+try { const s = localStorage.getItem(LS_KEY); if (s) { const o = JSON.parse(s); if (o && o.styles && o.page) { layout = Object.assign(clone(DEFAULT_LAYOUT), o); for (const k in DEFAULT_LAYOUT.styles) layout.styles[k] = Object.assign({}, DEFAULT_LAYOUT.styles[k], o.styles[k] || {}); layout.page = Object.assign({}, DEFAULT_LAYOUT.page, o.page); savedJSON = JSON.stringify(layout); } } } catch (e) {}
 
 function renderTabs() {
   const t = $("#tabs"); t.textContent = "";
@@ -56,8 +104,11 @@ function renderForm() {
     f.append(el("div", { class: "grid2" },
       ["top", "bottom", "left", "right"].map((k) => el("label", { class: "f" }, { top: "上邊界 (cm)", bottom: "下邊界 (cm)", left: "左邊界 (cm)（裝訂側）", right: "右邊界 (cm)" }[k], numInput(p[k], (v) => { p[k] = v; changed(); }, { step: "0.1", min: "0.5", max: "6" })))),
       el("div", { class: "row", style: "margin-top:14px;gap:22px" },
-        el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: p.header, onchange: (e) => { p.header = e.target.checked; changed(); } }), "頁首顯示計畫名稱"),
-        el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: p.pageNum, onchange: (e) => { p.pageNum = e.target.checked; changed(); } }), "頁尾頁碼（目錄 I、II；本文 1、2）")),
+        el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: p.header, onchange: (e) => { p.header = e.target.checked; changed(); } }), "頁首：機關 LOGO＋標案名稱／章名"),
+        el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: p.footerBidder, onchange: (e) => { p.footerBidder = e.target.checked; changed(); } }), "頁尾：投標廠商 LOGO＋名稱"),
+        el("label", { class: "toggle" }, el("input", { type: "checkbox", checked: p.pageNum, onchange: (e) => { p.pageNum = e.target.checked; changed(); } }), "頁碼（目錄 I、II；本文 1、2）")),
+      el("label", { class: "f", style: "margin-top:14px;max-width:260px" }, "頁首文字與線條顏色",
+        el("div", { class: "row" }, el("input", { type: "color", value: "#" + p.color, "aria-label": "頁首顏色", style: "width:48px;height:34px;border:1px solid var(--line);border-radius:4px;background:var(--field);padding:2px", oninput: (e) => { p.color = e.target.value.replace("#", "").toUpperCase(); changed(); } }), el("span", { class: "hint" }, "預設為綠色 #2E7D32"))),
       el("p", { class: "hint" }, "紙張固定為直式 A4，符合評選須知「直式 A4、左側裝訂」之要求。"));
     return;
   }
@@ -96,9 +147,18 @@ function updatePreview() {
   const k = 1.9, ptpx = 0.3528 * k; // 1pt → px at preview scale
   const sh = $("#sheet"), p = layout.page;
   sh.style.setProperty("--mt", p.top); sh.style.setProperty("--mb", p.bottom); sh.style.setProperty("--ml", p.left); sh.style.setProperty("--mr", p.right);
+  sh.style.setProperty("--theme", "#" + (p.color || "2E7D32"));
   $("#pvHdr").style.display = p.header ? "" : "none";
-  $(".sheet .pn").style.display = p.pageNum ? "" : "none";
-  $("#pvHdr").textContent = `${($("#pName") && $("#pName").value) || "計畫名稱"}　服務建議書`;
+  $("#pvProj").textContent = ($("#pName") && $("#pName").value) || "計畫名稱";
+  const al = state.logos.agency, bl = state.logos.bidder, showB = p.footerBidder !== false;
+  $("#pvAgencyLogo").hidden = !al; if (al) $("#pvAgencyLogo").src = al.url;
+  $("#pvBidderLogo").hidden = !(bl && showB); if (bl) $("#pvBidderLogo").src = bl.url;
+  $("#pvBidder").textContent = showB ? (($("#pBidder") && $("#pBidder").value) || "") : "";
+  $("#pvBidder").style.marginLeft = bl ? "auto" : "";
+  $("#pvPn").hidden = !p.pageNum;
+  const hasB = showB && (bl || $("#pvBidder").textContent);
+  $("#pvFtr").style.display = hasB || p.pageNum ? "" : "none";
+  $("#pvFtr").style.borderTopColor = hasB ? "" : "transparent";
   sh.querySelectorAll("[data-k]").forEach((e) => {
     const s = layout.styles[e.dataset.k];
     e.style.fontFamily = cssFont(s); e.style.fontSize = (s.size * ptpx).toFixed(2) + "px"; e.style.fontWeight = s.bold ? "700" : "400";
@@ -194,7 +254,7 @@ function reanalyze() {
   const P = TenderParse.analyze(ok);
   P.workItems.forEach((w) => { w.auto = true; w.subs.forEach((s) => (s.auto = true)); });
   const now = new Date();
-  P.bidder = prev && prev.bidder || "";
+  P.bidder = prev && prev.bidder || savedBidder.name || "";
   P.rocYear = now.getFullYear() - 1911; P.rocMonth = now.getMonth() + 1;
   if (P.endRoc) { P.endMonth = monthStr(P.endRoc.y + 1911, P.endRoc.m); P.startMonth = monthStr(P.endRoc.y + 1911, 1); }
   else { P.startMonth = monthStr(now.getFullYear(), now.getMonth() + 1); P.endMonth = monthStr(now.getFullYear() + (now.getMonth() + 11 >= 12 ? 1 : 0), ((now.getMonth() + 11) % 12) + 1); }
@@ -205,12 +265,12 @@ function renderP() {
   const P = state.P;
   $("#s2empty").hidden = !!P; $("#s2body").hidden = !P; $("#s2").classList.toggle("done", !!(P && P.projectName && P.workItems.length));
   if (!P) { updateGate(); return; }
-  bind("#pName", "projectName"); bind("#pAgency", "agency"); bind("#pShort", "agencyShort"); bind("#pBidder", "bidder");
+  bind("#pName", "projectName"); bind("#pAgency", "agency"); bind("#pShort", "agencyShort"); bind("#pBidder", "bidder"); $("#pBidder").addEventListener("input", () => { saveBidder(); updatePreview(); });
   bind("#pBudget", "budget", true); bind("#pPeriod", "period"); bind("#pStart", "startMonth"); bind("#pEnd", "endMonth"); bind("#pRocY", "rocYear", true); bind("#pRocM", "rocMonth", true);
   const c = $("#chips"); c.textContent = "";
   const chip = (l, n) => c.append(el("span", { class: "chip" }, l, " ", el("b", {}, String(n))));
   chip("查核點", P.milestones.length); chip("成果交付", P.deliverables.length); chip("評選項目", P.evaluation.length); chip("標價項目", P.priceItems.length); chip("參考文獻", P.references.length);
-  renderWI(); updatePreview(); updateGate();
+  renderWI(); renderLogos(); updateGate();
 }
 function renderWI() {
   const box = $("#wiList"); box.textContent = ""; const P = state.P;
@@ -362,6 +422,7 @@ $("#start").onclick = async () => {
   const P = JSON.parse(JSON.stringify(state.P));
   const months = monthsOf(P);
   P.months = months;
+  P.logos = { agency: state.logos.agency, bidder: state.logos.bidder };
   // 查核點位置（甘特圖 ★）
   const n = months.length || 12;
   const ck = P.milestones.map((m) => ({ name: m.stage, idx: /期初|計畫書|第一期/.test(m.stage) ? 0 : /期中|第二期/.test(m.stage) ? Math.floor((n - 1) / 2) : /期末|第三期/.test(m.stage) ? Math.max(0, n - 2) : n - 1 }));

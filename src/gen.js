@@ -30,7 +30,7 @@
     const {
       Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle,
       ShadingType, VerticalAlign, HeadingLevel, PageBreak, TableOfContents, StyleLevel, Footer, Header,
-      PageNumber, NumberFormat, LineRuleType, LevelFormat, TableLayoutType, HeightRule
+      PageNumber, NumberFormat, LineRuleType, LevelFormat, TableLayoutType, HeightRule, ImageRun, Tab, TabStopType
     } = D;
 
     // ---------- 尺寸 ----------
@@ -67,10 +67,16 @@
 
     // ---------- 標題與圖表編號 ----------
     let chap = 0, sec = 0, sub = 0, figN = 0, tabN = 0;
-    const out = []; // body children
-    function H1(text, label) {
+    // 每一章（含參考文獻、附錄）各為一個 Word 節，頁首右側顯示該章名稱
+    const chunks = [];
+    let out = [];
+    function startChunk(title) {
+      out = []; chunks.push({ title, children: out });
+      out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(title)] }));
+    }
+    function H1(text) {
       chap++; sec = 0; sub = 0; figN = 0; tabN = 0;
-      out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun(label === undefined ? `第${CH[chap]}章　${text}` : `${label}${label ? "　" : ""}${text}`)] }));
+      startChunk(`第${CH[chap]}章　${text}`);
     }
     function H2(text) { sec++; sub = 0; out.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun(`${chap}-${sec}　${text}`)] })); }
     function H3(text) { sub++; out.push(new Paragraph({ heading: HeadingLevel.HEADING_3, children: [new TextRun(`${chap}-${sec}-${sub}　${text}`)] })); }
@@ -425,7 +431,7 @@
     out.push(new Paragraph({ style: "SourceNote", children: runs("註：依「機關委託技術服務廠商評選及計費辦法」之服務成本加公費法編列，金額請依實際估算填列。") }));
 
     // 參考文獻
-    out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun("參考文獻")] }));
+    startChunk("參考文獻");
     const refs = P.references || [];
     const cats = [];
     refs.forEach((r) => { let c = cats.find((x) => x.name === r.category); if (!c) cats.push((c = { name: r.category, items: [] })); c.items.push(r.text); });
@@ -438,42 +444,86 @@
 
     // 附錄
     ["相關工作實績證明文件", "主要工作人員學經歷證明文件", "企業社會責任(CSR)相關證明文件"].forEach((t, i) => {
-      out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: true, children: [new TextRun(`附錄${CN[i + 1]}　${t}`)] }));
+      startChunk(`附錄${CN[i + 1]}　${t}`);
       out.push(body("【待補：檢附相關證明文件影本】"));
     });
 
-    // ================= 封面與目錄 =================
+    // ================= LOGO、封面與目錄 =================
+    const color = String(pg.color || "2E7D32").replace(/^#/, "").toUpperCase();
+    const logos = P.logos || {};
+    // 依高度等比例縮放（單位：像素，96 dpi）
+    function logo(l, h, maxW) {
+      if (!l || !l.data || !l.w || !l.h) return null;
+      let w = Math.round((h * l.w) / l.h);
+      if (w > maxW) { h = Math.round((h * maxW) / w); w = maxW; }
+      return new ImageRun({ type: "png", data: l.data, transformation: { width: w, height: h } });
+    }
     const coverRun = (t, size, bold) => new TextRun({ text: t, size: half(size), bold, font: font(st.h1) });
+    const agencyLogoCover = logo(logos.agency, 90, 260), bidderLogoCover = logo(logos.bidder, 56, 300);
     const cover = [
-      ...Array(4).fill(0).map(blank),
+      ...Array(agencyLogoCover ? 2 : 4).fill(0).map(blank),
+      agencyLogoCover ? new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 }, children: [agencyLogoCover] }) : null,
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 }, children: [coverRun(P.agency || "【待補：機關名稱】", 20, true)] }),
       blank(),
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { line: 600, lineRule: LineRuleType.AT_LEAST, after: 360 }, children: [coverRun(`「${P.projectName || "【待補：計畫名稱】"}」`, 24, true)] }),
       blank(),
       new Paragraph({ alignment: AlignmentType.CENTER, children: [coverRun("服 務 建 議 書", 32, true)] }),
-      ...Array(9).fill(0).map(blank),
+      ...Array(bidderLogoCover ? 7 : 9).fill(0).map(blank),
+      bidderLogoCover ? new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: [bidderLogoCover] }) : null,
       new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [coverRun(`投標廠商：${P.bidder || "【待補】"}`, 16, true)] }),
       new Paragraph({ alignment: AlignmentType.CENTER, children: [coverRun(`中華民國 ${P.rocYear || "　　"} 年 ${P.rocMonth || "　　"} 月`, 16, true)] }),
-    ];
-    const tocTitle = (t, first) => new Paragraph({ style: "TocTitle", pageBreakBefore: !first, children: [new TextRun(t)] });
-    const tocs = [
-      tocTitle("目　錄", true),
-      new TableOfContents("目錄", { hyperlink: true, headingStyleRange: "1-3" }),
-      tocTitle("表 目 錄"),
-      new TableOfContents("表目錄", { hyperlink: true, stylesWithLevels: [new StyleLevel("表標題", 1)] }),
-      tocTitle("圖 目 錄"),
-      new TableOfContents("圖目錄", { hyperlink: true, stylesWithLevels: [new StyleLevel("圖標題", 1)] }),
+    ].filter(Boolean);
+
+    // 目錄頁抬頭：機關、標案名稱、服務建議書、目錄名稱
+    const tocHead = (t) => [P.agency || "", P.projectName || "", "服務建議書"].filter(Boolean)
+      .map((x) => new Paragraph({ alignment: AlignmentType.CENTER, keepNext: true, spacing: { after: 40 }, children: [new TextRun({ text: x, bold: true, size: half(Math.max(st.h1.size - 2, 12)), font: font(st.h1) })] }))
+      .concat([new Paragraph({ style: "TocTitle", children: [new TextRun(t)] })]);
+    const tocPages = [
+      { title: "目錄", children: tocHead("目　錄").concat([new TableOfContents("目錄", { hyperlink: true, headingStyleRange: "1-3" })]) },
+      { title: "表目錄", children: tocHead("表 目 錄").concat([new TableOfContents("表目錄", { hyperlink: true, stylesWithLevels: [new StyleLevel("表標題", 1)] })]) },
+      { title: "圖目錄", children: tocHead("圖 目 錄").concat([new TableOfContents("圖目錄", { hyperlink: true, stylesWithLevels: [new StyleLevel("圖標題", 1)] })]) },
     ];
 
-    const footer = (fmt) => new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], size: 20, font: font(st.body) })] })] });
-    const header = () => new Header({ children: [new Paragraph({ alignment: AlignmentType.RIGHT, border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "808080", space: 2 } }, children: [new TextRun({ text: `${P.projectName || ""}　服務建議書`, size: 18, color: "595959", font: font(st.body) })] })] });
+    // 頁首：左＝機關 LOGO＋標案名稱；右＝本節名稱（第一層）
+    const hfFont = font(st.body);
+    const header = (title) => new Header({ children: [new Paragraph({
+      tabStops: [{ type: TabStopType.RIGHT, position: W }],
+      spacing: { after: 0, line: 240, lineRule: LineRuleType.AUTO },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 18, color, space: 3 } },
+      children: [logo(logos.agency, 30, 120), logos.agency ? new TextRun({ text: " " }) : null,
+        new TextRun({ text: P.projectName || "", bold: true, size: 20, color, font: hfFont }),
+        new TextRun({ children: [new Tab(), title || ""], bold: true, size: 20, color, font: hfFont })].filter(Boolean),
+    })] });
+    // 頁尾：左＝投標廠商 LOGO＋名稱；中＝頁碼（以無框線三欄表格排版，頁碼永遠置中）
+    const footer = () => {
+      // 有 LOGO：左 LOGO、右名稱；無 LOGO：名稱置左
+      const showB = pg.footerBidder !== false;
+      const nameRun = showB && P.bidder ? [new TextRun({ text: P.bidder, bold: true, size: 18, color: "404040", font: hfFont })] : [];
+      const lg = showB ? logo(logos.bidder, 30, 190) : null;
+      const left = lg ? [lg] : nameRun, right = lg ? nameRun : [];
+      if (!left.length && !pg.pageNum) return undefined;
+      const pn = pg.pageNum ? [new TextRun({ children: [PageNumber.CURRENT], size: 20, font: hfFont })] : [];
+      const ws = [Math.round(W * 0.42), W - 2 * Math.round(W * 0.42), Math.round(W * 0.42)];
+      const line = left.length || right.length ? { style: BorderStyle.SINGLE, size: 6, color: "808080" } : none;
+      const fp = (kids, al) => new Paragraph({ alignment: al, spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO }, children: kids });
+      const fc = (kids, w, al) => new TableCell({ width: { size: w, type: WidthType.DXA }, verticalAlign: VerticalAlign.CENTER, borders: { top: line, bottom: none, left: none, right: none }, margins: { top: 60, bottom: 0, left: 0, right: 0 }, children: [fp(kids, al)] });
+      return new Footer({ children: [new Table({
+        width: { size: W, type: WidthType.DXA }, columnWidths: ws, layout: TableLayoutType.FIXED,
+        borders: { top: line, bottom: noB.bottom, left: noB.left, right: noB.right, insideHorizontal: noB.top, insideVertical: noB.top },
+        rows: [new TableRow({ children: [fc(left, ws[0], AlignmentType.LEFT), fc(pn, ws[1], AlignmentType.CENTER), fc(right, ws[2], AlignmentType.RIGHT)] })],
+      }), new Paragraph({ spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT }, children: [] })] });
+    };
     const pageProps = (fmt, start) => ({
       page: {
         size: { width: 11906, height: 16838 },
-        margin: { top: cm(pg.top), bottom: cm(pg.bottom), left: cm(pg.left), right: cm(pg.right), header: cm(1.5), footer: cm(1.5) },
-        pageNumbers: start ? { start: 1, formatType: fmt } : undefined,
+        margin: { top: cm(pg.top), bottom: cm(pg.bottom), left: cm(pg.left), right: cm(pg.right), header: cm(1.2), footer: cm(1.2) },
+        pageNumbers: fmt ? (start ? { start: 1, formatType: fmt } : { formatType: fmt }) : undefined,
       },
     });
+    const section = (c, fmt, start) => {
+      const f = footer();
+      return { properties: pageProps(fmt, start), headers: pg.header ? { default: header(c.title) } : undefined, footers: f ? { default: f } : undefined, children: c.children };
+    };
 
     const S2 = (k, extra) => Object.assign({ run: { font: font(st[k]), size: half(st[k].size), bold: !!st[k].bold }, paragraph: Object.assign({ spacing: spacing(st[k]), alignment: align(st[k].align), indent: indentOf(st[k]) }, extra || {}) });
     const bodyIndent = Math.round((st.body.indent || 0) * st.body.size * 20);
@@ -510,9 +560,9 @@
         ],
       },
       sections: [
-        Object.assign({ properties: pageProps(null, false), children: cover }),
-        { properties: pageProps(NumberFormat.UPPER_ROMAN, true), footers: pg.pageNum ? { default: footer() } : undefined, children: tocs },
-        { properties: pageProps(NumberFormat.DECIMAL, true), headers: pg.header ? { default: header() } : undefined, footers: pg.pageNum ? { default: footer() } : undefined, children: out },
+        { properties: pageProps(null, false), children: cover },
+        ...tocPages.map((c, i) => section(c, NumberFormat.UPPER_ROMAN, i === 0)),
+        ...chunks.map((c, i) => section(c, NumberFormat.DECIMAL, i === 0)),
       ],
     });
   }

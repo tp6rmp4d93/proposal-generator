@@ -133,8 +133,20 @@ label.f.wide{grid-column:1/-1}
 .sheet-wrap{--k:1.9;width:calc(210px * var(--k));max-width:100%;margin:0 auto}
 .sheet{background:#fff;color:#111;aspect-ratio:210/297;box-shadow:0 1px 2px rgba(0,0,0,.15),0 12px 28px rgba(20,30,40,.18);overflow:hidden;position:relative;
   padding:calc(var(--mt) * 10px * var(--k)) calc(var(--mr) * 10px * var(--k)) 0 calc(var(--ml) * 10px * var(--k))}
-.sheet .hdr{position:absolute;top:calc(14px * var(--k));left:calc(var(--ml) * 10px * var(--k));right:calc(var(--mr) * 10px * var(--k));text-align:right;color:#666;border-bottom:1px solid #999;padding-bottom:1px;font-size:6px}
-.sheet .pn{position:absolute;bottom:calc(12px * var(--k));left:0;right:0;text-align:center;font-size:7px;color:#333}
+.sheet .hdr,.sheet .ftr{position:absolute;left:calc(var(--ml) * 10px * var(--k));right:calc(var(--mr) * 10px * var(--k));display:flex;align-items:flex-end;gap:3px;font-size:6.5px;font-weight:700;line-height:1.2}
+.sheet .hdr{top:calc(12px * var(--k));color:var(--theme,#2E7D32);border-bottom:2px solid var(--theme,#2E7D32);padding-bottom:2px}
+.sheet .hdr .r{margin-left:auto}
+.sheet .ftr{bottom:calc(10px * var(--k));color:#404040;border-top:.5px solid #808080;padding-top:2px;align-items:center}
+.sheet .ftr .pn{position:absolute;left:0;right:0;text-align:center;font-weight:400;color:#111;font-size:7px;pointer-events:none}
+.sheet .hdr img,.sheet .ftr img{height:11px;width:auto;max-width:60px;object-fit:contain}
+/* logo pickers */
+.logos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin-top:12px}
+@media (max-width:640px){.logos{grid-template-columns:1fr}}
+.logo-pick{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:center;padding:8px;border:1px solid var(--line-2);border-radius:4px;background:var(--field)}
+.logo-box{width:72px;height:52px;border:1px dashed var(--line);border-radius:3px;display:grid;place-items:center;background:#fff;overflow:hidden;color:#888;font-size:11px}
+.logo-box img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-pick .t{font-size:13px;font-weight:700}
+.logo-pick .row{gap:4px}
 .pv{margin:0;color:#111;overflow-wrap:anywhere}
 .pv mark{background:var(--mark);color:#111}
 .pv-table{width:100%;border-collapse:collapse;margin:0}
@@ -184,6 +196,13 @@ label.f.wide{grid-column:1/-1}
           <label class="f">進度表結束月<input class="inp" type="month" id="pEnd"></label>
           <label class="f">封面日期：民國年<input class="inp" id="pRocY" inputmode="numeric"></label>
           <label class="f">封面日期：月<input class="inp" id="pRocM" inputmode="numeric"></label>
+        </div>
+        <div class="logos">
+          <div class="logo-pick"><div class="logo-box" id="lgAgencyBox">無</div><div><div class="t">機關 LOGO</div><div class="hint">放在頁首左側、封面上方</div>
+            <div class="row"><button class="link-btn" data-logo="agency" data-act="pick">選擇圖片</button><button class="link-btn" data-logo="agency" data-act="clear" hidden>移除</button></div></div></div>
+          <div class="logo-pick"><div class="logo-box" id="lgBidderBox">無</div><div><div class="t">投標廠商 LOGO</div><div class="hint">放在頁尾左側、封面廠商名稱上方；會記在這台電腦</div>
+            <div class="row"><button class="link-btn" data-logo="bidder" data-act="pick">選擇圖片</button><button class="link-btn" data-logo="bidder" data-act="clear" hidden>移除</button></div></div></div>
+          <input type="file" id="logoIn" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/bmp" hidden>
         </div>
         <div class="chips" id="chips"></div>
         <div class="items">
@@ -237,7 +256,7 @@ label.f.wide{grid-column:1/-1}
   <aside class="preview-col" aria-label="版面預覽">
     <div class="pv-label"><span>版面預覽（A4）</span><span id="pvNote"></span></div>
     <div class="sheet-wrap"><div class="sheet" id="sheet">
-      <div class="hdr" id="pvHdr">計畫名稱　服務建議書</div>
+      <div class="hdr" id="pvHdr"><img id="pvAgencyLogo" alt="" hidden><span id="pvProj">計畫名稱</span><span class="r">第貳章　專案執行規劃</span></div>
       <p class="pv" data-k="h1">第貳章　專案執行規劃</p>
       <p class="pv" data-k="h2">2-1　對本計畫及問題之瞭解</p>
       <p class="pv" data-k="body">本團隊彙整歷年調查成果，結合 GIS 空間分析與 RAMMS 數值模擬，精進影響範圍之劃設依據，並於汛期前完成防災資訊檢視。<mark>【待補：補充本團隊觀點】</mark></p>
@@ -248,7 +267,7 @@ label.f.wide{grid-column:1/-1}
       <p class="pv" data-k="table" style="text-align:center;opacity:.7">（資料來源：本團隊整理）</p>
       <div class="pv-fig" data-fig>【圖片預留位置】</div>
       <p class="pv" data-k="caption">圖 2-1　整體執行流程圖</p>
-      <div class="pn">1</div>
+      <div class="ftr" id="pvFtr"><img id="pvBidderLogo" alt="" hidden><span id="pvBidder"></span><span class="pn" id="pvPn">1</span></div>
     </div></div>
     <p class="hint" style="margin-top:10px">預覽使用本機已安裝的字型；未安裝的字型會以相近字型顯示，Word 檔內仍會套用你選擇的字型名稱。</p>
   </aside>
